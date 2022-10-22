@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import hash from "hash.js";
 import { Direction, GameState } from "../common/types";
 import { ClientMessage, ClientMessageType, ServerMessage, ServerMessageType } from "../common/messages";
+import { map } from '../common/map';
 
 const { Physics, ServerClock, ExtendedObject3D } = Enable3D;
 
@@ -55,6 +56,20 @@ const store: Store = {
       collisionFlags: 2,
       mass: 0
     }));
+
+    map.forEach((platform, i) => {
+      platforms.push(physics.add.box({
+        name: `ground_${i}`,
+        x: platform.x,
+        y: platform.y,
+        z: platform.z,
+        width: platform.w,
+        height: platform.h,
+        depth: platform.d,
+        collisionFlags: 2,
+        mass: 0
+      }));
+    });
 
     rooms.set(roomId, {
       physics,

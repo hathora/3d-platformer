@@ -6,6 +6,7 @@ import { InterpolationBuffer } from "interpolation-buffer";
 import { Direction, GameState, Player } from "../../common/types";
 import { ClientMessageType } from "../../common/messages";
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils';
+import { map } from '../../common/map';
 
 const client = new HathoraClient(process.env.APP_ID as string, process.env.COORDINATOR_HOST);
 
@@ -34,6 +35,7 @@ class PlatformerScene extends Scene3D {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.load.preload('texture-grass', '/textures/Ground037_1K_Color.jpg');
+    this.load.preload('texture-brick', '/textures/PavingStones122_1K_Color.jpg');
   }
 
   // async preload() {
@@ -100,6 +102,31 @@ class PlatformerScene extends Scene3D {
     groundCube.texture.up.repeat.set(4, 4);
 
     this.add.box({ width: 40, depth: 40 }, { custom: groundCube.materials });
+
+    // Render the map platforms
+    const brickTexture = await this.load.texture('texture-brick');
+    const brickCube = this.misc.textureCube([
+      brickTexture,
+      brickTexture,
+      brickTexture,
+      brickTexture,
+      brickTexture,
+      brickTexture
+    ]);
+
+    map.forEach((platform) => {
+      this.add.box(
+        {
+          x: platform.x,
+          y: platform.y,
+          z: platform.z,
+          width: platform.w,
+          height: platform.h,
+          depth: platform.d
+        },
+        { custom: brickCube.materials }
+      );
+    });
     
     // Setup player keyboard input
     this.prevDirection = { x: 0, y: 0, z: 0 };
