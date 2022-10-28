@@ -7,6 +7,7 @@ import { Direction, GameState, Player } from "../../common/types";
 import { ClientMessageType } from "../../common/messages";
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils';
 import { map } from '../../common/map';
+import { MeshPhongMaterial } from 'three';
 
 const client = new HathoraClient(process.env.APP_ID as string, process.env.COORDINATOR_HOST);
 
@@ -35,12 +36,10 @@ class PlatformerScene extends Scene3D {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.load.preload('texture-grass', '/textures/Ground037_1K_Color.jpg');
+    this.load.preload('normal-grass', '/textures/Ground037_1K_NormalGL.jpg');
     this.load.preload('texture-brick', '/textures/PavingStones122_1K_Color.jpg');
+    this.load.preload('normal-brick', '/textures/PavingStones122_1K_NormalGL.jpg');
   }
-
-  // async preload() {
-
-  // }
 
   async create() {
     this.warpSpeed('-ground', '-orbitControls', '-lookAtCenter', '-camera');
@@ -89,32 +88,30 @@ class PlatformerScene extends Scene3D {
     }
 
     // Render the ground
+    const groundNormal = await this.load.texture('normal-grass');
     const groundTexture = await this.load.texture('texture-grass');
-    const groundCube = this.misc.textureCube([
-      groundTexture,
-      groundTexture,
-      groundTexture,
-      groundTexture,
-      groundTexture,
-      groundTexture
-    ]);
 
-    groundCube.texture.up.repeat.set(4, 4);
+    groundNormal.wrapS = THREE.RepeatWrapping;
+    groundNormal.wrapT = THREE.RepeatWrapping;
+    groundNormal.repeat.set(4, 4);
 
-    this.add.box({ width: 40, depth: 40 }, { custom: groundCube.materials });
+    groundTexture.wrapS = THREE.RepeatWrapping;
+    groundTexture.wrapT = THREE.RepeatWrapping;
+    groundTexture.repeat.set(4, 4);
+
+    this.add.box({ width: 40, depth: 40 }, {
+      phong: {
+        map: groundTexture,
+        normalMap: groundNormal,
+        normalScale: new THREE.Vector2(4, 4)
+      }
+    });
 
     // Render the map platforms
     const brickTexture = await this.load.texture('texture-brick');
-    const brickCube = this.misc.textureCube([
-      brickTexture,
-      brickTexture,
-      brickTexture,
-      brickTexture,
-      brickTexture,
-      brickTexture
-    ]);
+    const brickNormal = await this.load.texture('normal-brick');
 
-    map.forEach((platform) => {
+    map.forEach(async (platform) => {
       this.add.box(
         {
           x: platform.x,
@@ -124,7 +121,14 @@ class PlatformerScene extends Scene3D {
           height: platform.h,
           depth: platform.d
         },
-        { custom: brickCube.materials }
+        {
+          phong: {
+            map: brickTexture,
+            normalMap: brickNormal,
+            normalScale: new THREE.Vector2(8, 8),
+            transparent: true
+          }
+        }
       );
     });
     
@@ -225,6 +229,10 @@ class PlatformerScene extends Scene3D {
       if (object.isMesh) {
         object.castShadow = true;
         object.receiveShadow = true;
+
+        object.material.forEach((material: MeshPhongMaterial) => {
+          material.color.setRGB(2, 2, 2);
+        });
       }
     });
 
@@ -262,7 +270,7 @@ class PlatformerScene extends Scene3D {
         const playerObject = this.players.get(player.id);
 
         // Position player based on server
-        playerObject?.position.set(player.position.x, player.position.y, player.position.z);
+        playerObject?.position.set(player.position.x, player.position.y - 0.5, player.position.z);
 
         // Set rotation based on server theta
         playerObject?.rotation.set(0, player.theta, 0);
@@ -270,14 +278,14 @@ class PlatformerScene extends Scene3D {
         // Handle animation syncing
         if (player.grounded) {
           if (player.isMoving) {
-            playerObject?.anims.play('Slow Run');
+            playerObject?.anims.play('Slow Run', 600);
           }
           else {
-            playerObject?.anims.play('Idle');
+            playerObject?.anims.play('Idle', 600);
           }
         }
         else {
-          playerObject?.anims.play('Falling Idle');
+          playerObject?.anims.play('Falling Idle', 600);
         }
 
         playerObject?.animationMixer.update(time);

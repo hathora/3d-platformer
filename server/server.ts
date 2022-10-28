@@ -91,6 +91,7 @@ const store: Store = {
       // Then create a physics body (box, for now) for the player
       const body = game.physics.add.box({ name: `player_${userId}`, y: 5 });
       body.scale.set(0.005, 0.005, 0.005);
+      body.body.setAngularFactor(0, 0, 0); // prevent player's body from rotating
 
       const groundSensor = new ExtendedObject3D();
       groundSensor.position.setY(5 - 1 - 0.006);
