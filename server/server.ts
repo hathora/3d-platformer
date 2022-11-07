@@ -14,6 +14,7 @@ const { Physics, ServerClock, ExtendedObject3D } = Enable3D;
 const PLAYER_MOVE_SPEED = 200;
 const PLAYER_TURN_SPEED = 100;
 const PLAYER_JUMP_FORCE = 5;
+const RADIANS_45 = 0.785398;
 
 // A type which defines the properties of a player used internally on the server (not sent to client)
 type InternalPlayer = {
@@ -22,7 +23,7 @@ type InternalPlayer = {
   direction: Direction;
   theta: number;
   grounded: boolean;
-  isMoving: boolean;
+  animation: string;
 };
 
 // A type which represents the internal state of the server, containing:
@@ -126,7 +127,7 @@ const store: Store = {
         direction: { x: 0, y: 0, z: 0},
         theta: 0,
         grounded: false,
-        isMoving: false
+        animation: 'Falling Idle'
       });
     }
   },
@@ -221,20 +222,28 @@ function updateRoom(room: InternalState, delta: number) {
 
     // Forward / backward movement
     const {theta} = player;
-    const x = Math.sin(theta) * PLAYER_MOVE_SPEED * player.direction.z * delta;
+    const x = Math.sin(theta + (RADIANS_45 * player.direction.x)) * PLAYER_MOVE_SPEED * player.direction.z * delta;
     // const x = PLAYER_MOVE_SPEED * player.direction.z * delta;
     // const x = player.body.body.velocity.x;
     const y = player.body.body.velocity.y;
-    const z = Math.cos(theta) * PLAYER_MOVE_SPEED * player.direction.z * delta;
+    const z = Math.cos(theta + (RADIANS_45 * player.direction.x)) * PLAYER_MOVE_SPEED * player.direction.z * delta;
     // const z = PLAYER_MOVE_SPEED * player.direction.z * delta;
 
     player.body.body.setVelocity(x, y, z);
 
-    if (player.direction.z !== 0) {
-      player.isMoving = true;
+    if (player.grounded) {
+      if (player.direction.z === 1) {
+        player.animation = 'Slow Run';
+      }
+      else if (player.direction.z === -1) {
+        player.animation = 'Running Backward';
+      }
+      else {
+        player.animation = 'Idle';
+      }
     }
     else {
-      player.isMoving = false;
+      player.animation = 'Falling Idle';
     }
 
     player.body.body.refresh();
@@ -258,7 +267,7 @@ function broadcastStateUpdate(roomId: RoomId) {
       },
       theta: player.theta,
       grounded: player.grounded,
-      isMoving: player.isMoving
+      animation: player.animation
     }))
   };
 

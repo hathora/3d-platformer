@@ -276,17 +276,7 @@ class PlatformerScene extends Scene3D {
         playerObject?.rotation.set(0, player.theta, 0);
 
         // Handle animation syncing
-        if (player.grounded) {
-          if (player.isMoving) {
-            playerObject?.anims.play('Slow Run', 600);
-          }
-          else {
-            playerObject?.anims.play('Idle', 600);
-          }
-        }
-        else {
-          playerObject?.anims.play('Falling Idle', 600);
-        }
+        playerObject?.anims.play(player.animation, 600);
 
         playerObject?.animationMixer.update(time);
       }
@@ -364,7 +354,7 @@ function lerpPlayer(from: Player, to: Player, pctElapsed: number): Player {
       z: from.position.z + (to.position.z - from.position.z) * pctElapsed,
     },
     theta: from.theta + (to.theta - from.theta) * pctElapsed,
-    isMoving: to.isMoving,
+    animation: to.animation,
     grounded: to.grounded
   };
 }

@@ -15,7 +15,7 @@ export type Player = {
   position: Position;
   theta: number;
   grounded: boolean;
-  isMoving: boolean;
+  animation: string;
 };
 
 export type GameState = {
