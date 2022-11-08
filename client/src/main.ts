@@ -265,6 +265,7 @@ class PlatformerScene extends Scene3D {
   syncModels(state: any, time: number) {
     const {players} = state;
 
+    // Add or update player models
     players.forEach((player: Player) => {
       if (this.players.has(player.id)) {
         const playerObject = this.players.get(player.id);
@@ -308,6 +309,15 @@ class PlatformerScene extends Scene3D {
 
           this.player = playerObject;
         }
+      }
+    });
+
+    // Remove any destroyed players
+    this.players.forEach((playerObject, id) => {
+      const playerExistsInState = (players.findIndex((p: Player) => p.id === id) > -1);
+
+      if (!playerExistsInState) {
+        playerObject.removeFromParent();
       }
     });
   }
