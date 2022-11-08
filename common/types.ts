@@ -18,6 +18,12 @@ export type Player = {
   animation: string;
 };
 
+export type Gem = {
+  id: number;
+  position: Position;
+}
+
 export type GameState = {
   players: Player[];
+  gems: Gem[];
 };

@@ -3,11 +3,11 @@ import { Project, Scene3D, ExtendedObject3D, THREE, ThirdPersonControls, Pointer
 import { HathoraClient } from "@hathora/client-sdk";
 import { RoomConnection } from "./connection";
 import { InterpolationBuffer } from "interpolation-buffer";
-import { Direction, GameState, Player } from "../../common/types";
+import { Direction, GameState, Gem, Player } from "../../common/types";
 import { ClientMessageType } from "../../common/messages";
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils';
 import { map } from '../../common/map';
-import { MeshPhongMaterial } from 'three';
+import { MeshPhongMaterial, Object3D } from 'three';
 
 const client = new HathoraClient(process.env.APP_ID as string, process.env.COORDINATOR_HOST);
 
@@ -16,8 +16,10 @@ class PlatformerScene extends Scene3D {
   player!: ExtendedObject3D;
   stateBuffer: any;
   playerModel!: THREE.Group;
+  gemModel!: THREE.Group;
   playerAnims: Map<string, THREE.AnimationClip> = new Map();
   players: Map<string, ExtendedObject3D> = new Map();
+  gems: Map<number, ExtendedObject3D> = new Map();
   controls!: ThirdPersonControls;
   currentUserId!: string;
   prevDirection!: Direction;
@@ -71,6 +73,7 @@ class PlatformerScene extends Scene3D {
 
     // Load models
     this.playerModel = await this.load.fbx('/models/lewis/Idle.fbx');
+    this.gemModel = await this.load.fbx('/models/Amethyst.fbx');
     
     // Parse Lewis' animations
     const animations = [
@@ -262,8 +265,33 @@ class PlatformerScene extends Scene3D {
     return player;
   }
 
+  buildGem() {
+    // Create the object for our gem
+    const gem = new ExtendedObject3D();
+
+    // Clone our loaded gem model
+    const model = SkeletonUtils.clone(this.gemModel);
+
+    // Lower it's scale
+    model.scale.set(0.0075, 0.0075, 0.0075);
+
+    // Enable shadows on all mesh
+    model.traverse((object: any) => {
+      if (object.isMesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+
+    // Add the model to the object
+    gem.add(model);
+
+    // Return our fresh player!
+    return gem;
+  }
+
   syncModels(state: any, time: number) {
-    const {players} = state;
+    const {players, gems} = state;
 
     players.forEach((player: Player) => {
       if (this.players.has(player.id)) {
@@ -310,6 +338,33 @@ class PlatformerScene extends Scene3D {
         }
       }
     });
+
+    // Spawn all available gems from the server
+    gems.forEach((gemData: Gem) => {
+      if (!this.gems.has(gemData.id)) {
+        const gem = this.buildGem();
+        
+        gem.position.set(gemData.position.x, gemData.position.y, gemData.position.z);
+
+        this.scene.add(gem);
+        this.gems.set(gemData.id, gem);
+      }
+      // (For debugging, repositioning will not be required)
+      else {
+        const gem = this.gems.get(gemData.id);
+
+        gem?.position.set(gemData.position.x, gemData.position.y, gemData.position.z);
+      }
+    });
+
+    // Remove gems as they are collected
+    // this.gems.forEach((gem, id) => {
+    //   const gemExists = (gems.findIndex((g: Gem) => g.id === id) > -1);
+
+    //   if (!gemExists) {
+    //     // todo - remove gem from scene and Record
+    //   }
+    // });
   }
 }
 
@@ -341,6 +396,9 @@ function lerp(from: GameState, to: GameState, pctElapsed: number): GameState {
     players: to.players.map((toPlayer) => {
       const fromPlayer = from.players.find((p) => p.id === toPlayer.id);
       return fromPlayer !== undefined ? lerpPlayer(fromPlayer, toPlayer, pctElapsed) : toPlayer;
+    }),
+    gems: to.gems.map((toGem) => {
+      return toGem;
     })
   };
 }

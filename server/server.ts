@@ -7,6 +7,7 @@ import hash from "hash.js";
 import { Direction, GameState } from "../common/types";
 import { ClientMessage, ClientMessageType, ServerMessage, ServerMessageType } from "../common/messages";
 import { map } from '../common/map';
+import { gems as map_gems } from './gems';
 
 const { Physics, ServerClock, ExtendedObject3D } = Enable3D;
 
@@ -32,6 +33,7 @@ type InternalPlayer = {
 type InternalState = {
   physics: Enable3D.Physics;
   platforms: Enable3D.ExtendedObject3D[];
+  gems: Enable3D.ExtendedObject3D[];
   players: InternalPlayer[];
 };
 
@@ -48,6 +50,7 @@ const store: Store = {
 
     const physics = new Physics();
     let platforms: Enable3D.ExtendedObject3D[] = [];
+    let gems: Enable3D.ExtendedObject3D[] = [];
 
     // Create ground & platforms
     platforms.push(physics.add.box({
@@ -72,9 +75,24 @@ const store: Store = {
       }));
     });
 
+    map_gems.forEach((gem, i) => {
+      gems.push(physics.add.box({
+        name: `gem_${i}`,
+        x: gem.x,
+        y: gem.y,
+        z: gem.z,
+        width: 0.0075,
+        height: 0.0075,
+        depth: 0.0075,
+        collisionFlags: 2,
+        mass: 0
+      }));
+    });
+
     rooms.set(roomId, {
       physics,
       platforms,
+      gems,
       players: []
     });
   },
@@ -268,6 +286,14 @@ function broadcastStateUpdate(roomId: RoomId) {
       theta: player.theta,
       grounded: player.grounded,
       animation: player.animation
+    })),
+    gems: game.gems.map((gem) => ({
+      id: gem.id,
+      position: {
+        x: gem.body.position.x,
+        y: gem.body.position.y,
+        z: gem.body.position.z
+      }
     }))
   };
 
