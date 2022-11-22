@@ -139,10 +139,14 @@ const store: Store = {
       return;
     }
     
-    // Remove the player from the room's state
     const game = rooms.get(roomId)!;
     const idx = game.players.findIndex((player) => player.id === userId);
 
+    // Remove the player's physics body
+    const {body} = game.players[idx];
+    game.physics.destroy(body);
+    
+    // Remove the player from the room's state
     if (idx >= 0) {
       game.players.splice(idx, 1);
     }
