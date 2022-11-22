@@ -24,6 +24,8 @@ class PlatformerScene extends Scene3D {
   keys: Set<string> = new Set();
   connection!: RoomConnection;
   prevTheta: number = 0;
+  preloaderContainer!: HTMLDivElement;
+  preloaderBar!: HTMLDivElement;
 
   constructor() {
     super({
@@ -41,18 +43,42 @@ class PlatformerScene extends Scene3D {
     this.load.preload('normal-brick', '/textures/PavingStones122_1K_NormalGL.jpg');
   }
 
+  bindPreloaderDOM() {
+    this.preloaderContainer = document.querySelector('.preloader') as HTMLDivElement;
+    this.preloaderBar = this.preloaderContainer.querySelector('.preloader__bar-inner') as HTMLDivElement;
+  }
+
+  setPreloaderPercentage(p: number) {
+    if (p === 1) {
+      this.preloaderContainer.classList.add('off');
+    }
+
+    this.preloaderBar.style.width = `${p*100}%`;
+  }
+
+
   async create() {
     this.warpSpeed('-ground', '-orbitControls', '-lookAtCenter', '-camera');
+
+    this.bindPreloaderDOM();
+
+    this.setPreloaderPercentage(0);
 
     // Initialize Hathora server connection
     const token = await getToken();
 
+    this.setPreloaderPercentage(0.1);
+
     // Once we have a token, we can get our roomId
     const roomId = await getRoomId(token);
+
+    this.setPreloaderPercentage(0.2);
 
     // With a roomId, we can establish a connection to the room on server
     this.connection = new RoomConnection(client, token, roomId);
     await this.connection.connect();
+
+    this.setPreloaderPercentage(0.3);
 
     // Save the current user's ID, so we know who to follow with the camera
     const currentUser = HathoraClient.getUserFromToken(token);
@@ -71,6 +97,8 @@ class PlatformerScene extends Scene3D {
 
     // Load models
     this.playerModel = await this.load.fbx('/models/lewis/Idle.fbx');
+
+    this.setPreloaderPercentage(0.7);
     
     // Parse Lewis' animations
     const animations = [
@@ -81,15 +109,24 @@ class PlatformerScene extends Scene3D {
 
     this.playerAnims.set('Idle', this.playerModel.animations[0]);
 
+    let load = 0.7;
+
     for (let animKey of animations) {
       const anim = await this.load.fbx(`/models/lewis/unskinned/${animKey}.fbx`);
 
       this.playerAnims.set(animKey, anim.animations[0]);
+      
+      load += 0.05;
+      this.setPreloaderPercentage(load);
     }
+
+    this.setPreloaderPercentage(0.9);
 
     // Render the ground
     const groundNormal = await this.load.texture('normal-grass');
     const groundTexture = await this.load.texture('texture-grass');
+
+    this.setPreloaderPercentage(0.95);
 
     groundNormal.wrapS = THREE.RepeatWrapping;
     groundNormal.wrapT = THREE.RepeatWrapping;
@@ -135,6 +172,8 @@ class PlatformerScene extends Scene3D {
     // Setup player keyboard input
     this.prevDirection = { x: 0, y: 0, z: 0 };
     this.bindKeyboardEvents();
+
+    this.setPreloaderPercentage(1);
   }
 
   update(time: number) {
@@ -265,6 +304,7 @@ class PlatformerScene extends Scene3D {
   syncModels(state: any, time: number) {
     const {players} = state;
 
+    // Add or update player models
     players.forEach((player: Player) => {
       if (this.players.has(player.id)) {
         const playerObject = this.players.get(player.id);
@@ -308,6 +348,15 @@ class PlatformerScene extends Scene3D {
 
           this.player = playerObject;
         }
+      }
+    });
+
+    // Remove any destroyed players
+    this.players.forEach((playerObject, id) => {
+      const playerExistsInState = (players.findIndex((p: Player) => p.id === id) > -1);
+
+      if (!playerExistsInState) {
+        playerObject.removeFromParent();
       }
     });
   }
