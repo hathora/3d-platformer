@@ -1,0 +1,10 @@
+✔ Fix model Y offest from ground @done(22-10-28 00:58)
+✔ Investigate "stuck in falling state" bug @done(22-10-28 00:59)
+✔ Keep debugging model lighting (too dark) @done(22-10-28 00:59)
+✔ Implement a strafe A/D move (w/ anim?) @done(22-11-07 07:34)
+✔ Flesh out map @done(22-11-07 07:56)
+☐ Collectables
+✔ Cleanup colliders (server) on unsubscribe @done(22-11-16 12:52)
+✔ Remove model (client) on unsubscribe @done(22-11-16 12:52)
+
+https://rkuhlf-assets.itch.io/precious-gems

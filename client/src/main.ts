@@ -310,7 +310,7 @@ class PlatformerScene extends Scene3D {
         const playerObject = this.players.get(player.id);
 
         // Position player based on server
-        playerObject?.position.set(player.position.x, player.position.y - 0.5, player.position.z);
+        playerObject?.position.set(player.position.x, player.position.y - 1, player.position.z);
 
         // Set rotation based on server theta
         playerObject?.rotation.set(0, player.theta, 0);
