@@ -18,6 +18,7 @@ canvas {
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background-color: rgba(0, 0, 0, 0.5);
@@ -27,6 +28,10 @@ canvas {
   transition: opacity 0.55, visibility 0.55;
 }
 
+.preloader img {
+  margin-bottom: 64px;
+}
+
 .preloader.off {
   opacity: 0;
   visibility: hidden;
@@ -34,7 +39,7 @@ canvas {
 
 .preloader__bar {
   width: 65%;
-  height: 15px;
+  height: 8px;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
