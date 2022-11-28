@@ -95,11 +95,6 @@ class PlatformerScene extends Scene3D {
       }
     });
 
-    // Load models
-    this.playerModel = await this.load.fbx('/models/lewis/Idle.fbx');
-
-    this.setPreloaderPercentage(0.7);
-    
     // Parse Lewis' animations
     const animations = [
       'Slow Run',
@@ -107,18 +102,20 @@ class PlatformerScene extends Scene3D {
       'Falling Idle'
     ];
 
-    this.playerAnims.set('Idle', this.playerModel.animations[0]);
-
-    let load = 0.7;
+    let load = 0.3;
 
     for (let animKey of animations) {
       const anim = await this.load.fbx(`/models/lewis/unskinned/${animKey}.fbx`);
 
       this.playerAnims.set(animKey, anim.animations[0]);
       
-      load += 0.05;
+      load += 0.15;
       this.setPreloaderPercentage(load);
     }
+
+    // Load model
+    this.playerModel = await this.load.fbx('/models/lewis/Idle.fbx');
+    this.playerAnims.set('Idle', this.playerModel.animations[0]);
 
     this.setPreloaderPercentage(0.9);
 
