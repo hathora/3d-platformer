@@ -90,12 +90,12 @@ const store: Store = {
     // Make sure the player hasn't already spawned
     if (!game.players.some((player) => player.id === userId)) {
       // Then create a physics body (box, for now) for the player
-      const body = game.physics.add.sphere({ name: `player_${userId}`, y: 5 });
-      body.scale.set(0.002, 0.005, 0.002);
+      const body = game.physics.add.box({ name: `player_${userId}`, y: 5 });
+      body.scale.set(0.0005, 0.0005, 0.0005);
       body.body.setAngularFactor(0, 0, 0); // prevent player's body from rotating
 
       const groundSensor = new ExtendedObject3D();
-      groundSensor.position.setY(5 - 1 - 0.006);
+      groundSensor.position.setY(5 - 1 - 0.0005);
       game.physics.add.existing(groundSensor, {
         mass: 1e-8,
         shape: 'box',
