@@ -16,4 +16,4 @@ APP_ID=<appId>
 APP_SECRET=<appSecret>
 ```
 - Start server: inside `server` directory run `npm start` (remember to `npm install` first)
-- Start client: inside `client` directory run `npm run dev` (remember to `npm install` first)
+- Start client: inside `client` directory run `npm start` (remember to `npm install` first)
