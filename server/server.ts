@@ -193,15 +193,14 @@ if (process.env.APP_SECRET === undefined) {
 
 // Connect to the Hathora coordinator
 const coordinator = await register({
-  appId: hash.sha256().update(process.env.APP_SECRET).digest("hex"),
   coordinatorHost: process.env.COORDINATOR_HOST,
   appSecret: process.env.APP_SECRET,
   authInfo: { anonymous: { separator: "-" } },
   store,
 });
 
-const { host, appId, storeId } = coordinator;
-console.log(`Connected to coordinator at ${host} with appId ${appId} and storeId ${storeId}`);
+const { host, storeId } = coordinator;
+console.log(`Connected to coordinator at ${host} with storeId ${storeId}`);
 
 _ammo().then((ammo: any) => {
   globalThis.Ammo = ammo;
