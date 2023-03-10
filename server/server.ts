@@ -1,9 +1,10 @@
 // @ts-ignore
 import _ammo from '@enable3d/ammo-on-nodejs/ammo/ammo.js';
 import Enable3D from '@enable3d/ammo-on-nodejs';
-import { register, Store, UserId, RoomId } from "@hathora/server-sdk";
+import { UserId, RoomId, Application, startServer, verifyJwt } from "@hathora/server-sdk";
 import dotenv from "dotenv";
-import hash from "hash.js";
+import path from "path";
+import { fileURLToPath } from "url";
 import { Direction, GameState } from "../common/types";
 import { ClientMessage, ClientMessageType, ServerMessage, ServerMessageType } from "../common/messages";
 import { map } from '../common/map';
@@ -12,7 +13,6 @@ const { Physics, ServerClock, ExtendedObject3D } = Enable3D;
 
 // Game constants
 const PLAYER_MOVE_SPEED = 200;
-const PLAYER_TURN_SPEED = 100;
 const PLAYER_JUMP_FORCE = 5;
 const RADIANS_45 = 0.785398;
 
@@ -39,51 +39,21 @@ type InternalState = {
 const rooms: Map<RoomId, InternalState> = new Map();
 
 // Create an object to represent our Store
-const store: Store = {
-  // newState is called when a user requests a new room, this is a good place to handle any world initialization
-  newState(roomId: bigint, userId: string): void {
-    // const clock = new ServerClock();
-
-    // clock.onTick(delta => this.update(delta));
-
-    const physics = new Physics();
-    let platforms: Enable3D.ExtendedObject3D[] = [];
-
-    // Create ground & platforms
-    platforms.push(physics.add.box({
-      name: 'ground',
-      width: 40,
-      depth: 40,
-      collisionFlags: 2,
-      mass: 0
-    }));
-
-    map.forEach((platform, i) => {
-      platforms.push(physics.add.box({
-        name: `ground_${i}`,
-        x: platform.x,
-        y: platform.y,
-        z: platform.z,
-        width: platform.w,
-        height: platform.h,
-        depth: platform.d,
-        collisionFlags: 2,
-        mass: 0
-      }));
-    });
-
-    rooms.set(roomId, {
-      physics,
-      platforms,
-      players: []
-    });
+const store: Application = {
+  verifyToken(token: string): UserId | undefined {
+    const userId = verifyJwt(token, process.env.APP_SECRET!);
+    if (userId === undefined) {
+      console.error("Failed to verify token", token);
+    }
+    return userId;
   },
 
   // subscribeUser is called when a new user enters a room, it's an ideal place to do any player-specific initialization steps
-  subscribeUser(roomId: bigint, userId: string): void {
-    // Make sure the room exists
+  subscribeUser(roomId: RoomId, userId: string): void {
+    // Make sure the room exists (or create one if not)
     if (!rooms.has(roomId)) {
-      return;
+      console.log("Creating new room...");
+      createRoom(roomId);
     }
     const game = rooms.get(roomId)!;
 
@@ -133,7 +103,7 @@ const store: Store = {
   },
 
   // unsubscribeUser is called when a user disconnects from a room, and is the place where you'd want to do any player-cleanup
-  unsubscribeUser(roomId: bigint, userId: string): void {
+  unsubscribeUser(roomId: RoomId, userId: string): void {
     // Make sure the room exists
     if (!rooms.has(roomId)) {
       return;
@@ -153,7 +123,7 @@ const store: Store = {
   },
 
   // onMessage is an integral part of your game's server. It is responsible for reading messages sent from the clients and handling them accordingly, this is where your game's event-based logic should live
-  onMessage(roomId: bigint, userId: string, data: ArrayBufferView): void {
+  onMessage(roomId: RoomId, userId: string, data: ArrayBuffer): void {
     if (!rooms.has(roomId)) {
       return;
     }
@@ -166,8 +136,7 @@ const store: Store = {
     }
 
     // Parse out the data string being sent from the client
-    const dataStr = Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString("utf8");
-    const message: ClientMessage = JSON.parse(dataStr);
+    const message: ClientMessage = JSON.parse(Buffer.from(data).toString("utf8"));
 
     // Handle the various message types, specific to this game
     if (message.type === ClientMessageType.SetDirection) {
@@ -186,22 +155,15 @@ const store: Store = {
 };
 
 // Load our environment variables into process.env
-dotenv.config({ path: "../.env" });
+dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env") });
 if (process.env.APP_SECRET === undefined) {
   throw new Error("APP_SECRET not set");
 }
 
-// Connect to the Hathora coordinator
-const coordinator = await register({
-  appId: hash.sha256().update(process.env.APP_SECRET).digest("hex"),
-  coordinatorHost: process.env.COORDINATOR_HOST,
-  appSecret: process.env.APP_SECRET,
-  authInfo: { anonymous: { separator: "-" } },
-  store,
-});
-
-const { host, appId, storeId } = coordinator;
-console.log(`Connected to coordinator at ${host} with appId ${appId} and storeId ${storeId}`);
+// Boot server
+const port = parseInt(process.env.PORT ?? "4000");
+const server = await startServer(store, port);
+console.log(`Server listening on port ${port}`);
 
 _ammo().then((ammo: any) => {
   globalThis.Ammo = ammo;
@@ -218,6 +180,40 @@ _ammo().then((ammo: any) => {
     });
   });
 });
+
+function createRoom(roomId: RoomId) {
+  const physics = new Physics();
+  let platforms: Enable3D.ExtendedObject3D[] = [];
+
+  // Create ground & platforms
+  platforms.push(physics.add.box({
+    name: 'ground',
+    width: 40,
+    depth: 40,
+    collisionFlags: 2,
+    mass: 0
+  }));
+
+  map.forEach((platform, i) => {
+    platforms.push(physics.add.box({
+      name: `ground_${i}`,
+      x: platform.x,
+      y: platform.y,
+      z: platform.z,
+      width: platform.w,
+      height: platform.h,
+      depth: platform.d,
+      collisionFlags: 2,
+      mass: 0
+    }));
+  });
+
+  rooms.set(roomId, {
+    physics,
+    platforms,
+    players: []
+  });
+}
 
 function updateRoom(room: InternalState, delta: number) {
   // Move each player with a direction set and apply gravity
@@ -258,7 +254,6 @@ function updateRoom(room: InternalState, delta: number) {
 
 function broadcastStateUpdate(roomId: RoomId) {
   const game = rooms.get(roomId)!;
-  const subscribers = coordinator.getSubscribers(roomId);
   const now = Date.now();
   // Map properties in the game's state which the clients need to know about to render the game
   const state: GameState = {
@@ -276,12 +271,10 @@ function broadcastStateUpdate(roomId: RoomId) {
   };
 
   // Send the state update to each connected client
-  subscribers.forEach((userId) => {
-    const msg: ServerMessage = {
-      type: ServerMessageType.StateUpdate,
-      state,
-      ts: now,
-    };
-    coordinator.sendMessage(roomId, userId, Buffer.from(JSON.stringify(msg), "utf8"));
-  });
+  const msg: ServerMessage = {
+    type: ServerMessageType.StateUpdate,
+    state,
+    ts: now,
+  };
+  server.broadcastMessage(roomId, Buffer.from(JSON.stringify(msg), "utf8"));
 }

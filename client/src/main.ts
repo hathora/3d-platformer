@@ -9,7 +9,13 @@ import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils';
 import { map } from '../../common/map';
 import { MeshPhongMaterial } from 'three';
 
-const client = new HathoraClient(process.env.APP_ID as string, process.env.COORDINATOR_HOST);
+// Instantiate an object which represents our client
+const connectionInfo = import.meta.env.DEV
+  ? { host: "localhost", port: 4000, transportType: "tcp" as const }
+  : undefined;
+
+// @ts-ignore
+const client = new HathoraClient(process.env.APP_ID as string, connectionInfo);
 
 class PlatformerScene extends Scene3D {
   box: any;
@@ -375,11 +381,11 @@ async function getToken(): Promise<string> {
 async function getRoomId(token: string): Promise<string> {
   if (location.pathname.length > 1) {
     return location.pathname.split("/").pop()!;
+  } else {
+    const roomId = await client.createPrivateLobby(token);
+    history.pushState({}, "", `/${roomId}`);
+    return roomId;
   }
-  
-  const roomId = await client.create(token, new Uint8Array());
-  history.pushState({}, "", `/${roomId}`);
-  return roomId;
 }
 
 function lerp(from: GameState, to: GameState, pctElapsed: number): GameState {
