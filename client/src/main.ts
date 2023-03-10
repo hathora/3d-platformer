@@ -15,7 +15,7 @@ const connectionInfo = import.meta.env.DEV
   : undefined;
 
 // @ts-ignore
-const client = new HathoraClient(process.env.APP_ID!, connectionInfo);
+const client = new HathoraClient(process.env.APP_ID as string, connectionInfo);
 
 class PlatformerScene extends Scene3D {
   box: any;
