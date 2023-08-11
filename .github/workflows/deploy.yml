@@ -9,8 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: npm install -g hathora
-      - run: hathora cloud deploy --appName 3d-platformer --token ${{ secrets.HATHORA_TOKEN }}
+      - run: npm install -g @hathora/cli
+      - run: hathora-cloud deploy --appId app-fe9b99fd-7727-4532-9dac-92e064baacce --token ${{ secrets.HATHORA_TOKEN }}
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -19,6 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: npm ci
-      - run: APP_ID=app-9b4ef721-6405-49d8-9073-dd89389b2646 npm run build
+      - run: HATHORA_APP_ID=app-fe9b99fd-7727-4532-9dac-92e064baacce npm run build
       - run: npm install -g netlify-cli
       - run: netlify deploy --dir dist --site ${{ secrets.NETLIFY_SITE_ID }} --auth ${{ secrets.NETLIFY_AUTH_TOKEN }} --prod

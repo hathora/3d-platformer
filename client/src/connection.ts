@@ -1,5 +1,4 @@
-import { HathoraClient } from "@hathora/client-sdk";
-import { HathoraTransport, TransportType } from "@hathora/client-sdk/lib/transport";
+import { HathoraClient, HathoraConnection } from "@hathora/client-sdk";
 
 import { ClientMessage, ServerMessage } from "../../common/messages";
 
@@ -9,19 +8,16 @@ export type UpdateListener = (update: ServerMessage) => void;
 export class RoomConnection {
   private encoder = new TextEncoder();
   private decoder = new TextDecoder();
-  private connection: HathoraTransport | undefined;
+  private connection: HathoraConnection | undefined;
   private listeners: UpdateListener[] = [];
 
   public constructor(private client: HathoraClient, public token: string, public roomId: string) {}
 
   public async connect() {
-    this.connection = await this.client.connect(
-      this.token,
-      this.roomId,
-      (msg) => this.handleMessage(msg),
-      (err) => this.handleClose(err),
-      TransportType.WebSocket
-    );
+    this.connection = await this.client.newConnection(this.roomId);
+    this.connection.onMessage((msg) => this.handleMessage(msg));
+    this.connection.onClose((err) => this.handleClose(err));
+    await this.connection.connect(this.token);
   }
 
   public addListener(listener: UpdateListener) {

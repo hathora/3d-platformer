@@ -5,7 +5,7 @@
   },
   "dependencies": {
     "@enable3d/ammo-on-nodejs": "^0.25.3",
-    "@hathora/server-sdk": "^0.3.0",
+    "@hathora/server-sdk": "^1.1.0",
     "dotenv": "^16.0.2",
     "enable3d": "^0.25.3",
     "hash.js": "^1.1.7"

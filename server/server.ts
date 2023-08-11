@@ -1,12 +1,11 @@
 // @ts-ignore
-import _ammo from '@enable3d/ammo-on-nodejs/ammo/ammo.js';
-import Enable3D from '@enable3d/ammo-on-nodejs';
-import { register, Store, UserId, RoomId } from "@hathora/server-sdk";
+import _ammo from "@enable3d/ammo-on-nodejs/ammo/ammo.js";
+import Enable3D from "@enable3d/ammo-on-nodejs";
+import { Application, RoomId, UserId, startServer, verifyJwt } from "@hathora/server-sdk";
 import dotenv from "dotenv";
-import hash from "hash.js";
-import { Direction, GameState } from "../common/types";
-import { ClientMessage, ClientMessageType, ServerMessage, ServerMessageType } from "../common/messages";
-import { map } from '../common/map';
+import { Direction, GameState } from "../common/types.js";
+import { ClientMessage, ClientMessageType, ServerMessage, ServerMessageType } from "../common/messages.js";
+import { map } from "../common/map.js";
 
 const { Physics, ServerClock, ExtendedObject3D } = Enable3D;
 
@@ -39,52 +38,56 @@ type InternalState = {
 const rooms: Map<RoomId, InternalState> = new Map();
 
 // Create an object to represent our Store
-const store: Store = {
-  // newState is called when a user requests a new room, this is a good place to handle any world initialization
-  newState(roomId: bigint, userId: string): void {
-    // const clock = new ServerClock();
-
-    // clock.onTick(delta => this.update(delta));
-
-    const physics = new Physics();
-    let platforms: Enable3D.ExtendedObject3D[] = [];
-
-    // Create ground & platforms
-    platforms.push(physics.add.box({
-      name: 'ground',
-      width: 40,
-      depth: 40,
-      collisionFlags: 2,
-      mass: 0
-    }));
-
-    map.forEach((platform, i) => {
-      platforms.push(physics.add.box({
-        name: `ground_${i}`,
-        x: platform.x,
-        y: platform.y,
-        z: platform.z,
-        width: platform.w,
-        height: platform.h,
-        depth: platform.d,
-        collisionFlags: 2,
-        mass: 0
-      }));
-    });
-
-    rooms.set(roomId, {
-      physics,
-      platforms,
-      players: []
-    });
+const store: Application = {
+  async verifyToken(token: string): Promise<UserId | undefined> {
+    const userId = verifyJwt(token, process.env.HATHORA_APP_SECRET!);
+    if (userId === undefined) {
+      console.error("Failed to verify token", token);
+    }
+    return userId;
   },
 
   // subscribeUser is called when a new user enters a room, it's an ideal place to do any player-specific initialization steps
-  subscribeUser(roomId: bigint, userId: string): void {
+  async subscribeUser(roomId, userId): Promise<void> {
     // Make sure the room exists
     if (!rooms.has(roomId)) {
-      return;
+      const physics = new Physics();
+      let platforms: Enable3D.ExtendedObject3D[] = [];
+
+      // Create ground & platforms
+      platforms.push(
+        physics.add.box({
+          name: "ground",
+          width: 40,
+          depth: 40,
+          collisionFlags: 2,
+          mass: 0,
+        })
+      );
+
+      map.forEach((platform, i) => {
+        platforms.push(
+          physics.add.box({
+            name: `ground_${i}`,
+            x: platform.x,
+            y: platform.y,
+            z: platform.z,
+            width: platform.w,
+            height: platform.h,
+            depth: platform.d,
+            collisionFlags: 2,
+            mass: 0,
+          })
+        );
+      });
+
+      rooms.set(roomId, {
+        physics,
+        platforms,
+        players: [],
+      });
     }
+
     const game = rooms.get(roomId)!;
 
     // Make sure the player hasn't already spawned
@@ -98,10 +101,10 @@ const store: Store = {
       groundSensor.position.setY(5 - 1 - 0.0005);
       game.physics.add.existing(groundSensor, {
         mass: 1e-8,
-        shape: 'box',
+        shape: "box",
         width: 0.2,
         height: 0.2,
-        depth: 0.2 
+        depth: 0.2,
       });
       groundSensor.body.setCollisionFlags(4);
       game.physics.add.constraints.lock(body.body, groundSensor.body);
@@ -109,12 +112,11 @@ const store: Store = {
       groundSensor.body.on.collision((object, e) => {
         if (/ground/.test(object.name)) {
           const collidingPlayer = game.players.find((p) => p.id === userId);
-          
+
           if (collidingPlayer) {
-            if (e !== 'end') {
+            if (e !== "end") {
               collidingPlayer.grounded = true;
-            }
-            else {
+            } else {
               collidingPlayer.grounded = false;
             }
           }
@@ -124,28 +126,28 @@ const store: Store = {
       game.players.push({
         id: userId,
         body,
-        direction: { x: 0, y: 0, z: 0},
+        direction: { x: 0, y: 0, z: 0 },
         theta: 0,
         grounded: false,
-        animation: 'Falling Idle'
+        animation: "Falling Idle",
       });
     }
   },
 
   // unsubscribeUser is called when a user disconnects from a room, and is the place where you'd want to do any player-cleanup
-  unsubscribeUser(roomId: bigint, userId: string): void {
+  async unsubscribeUser(roomId, userId): Promise<void> {
     // Make sure the room exists
     if (!rooms.has(roomId)) {
       return;
     }
-    
+
     const game = rooms.get(roomId)!;
     const idx = game.players.findIndex((player) => player.id === userId);
 
     // Remove the player's physics body
-    const {body} = game.players[idx];
+    const { body } = game.players[idx];
     game.physics.destroy(body);
-    
+
     // Remove the player from the room's state
     if (idx >= 0) {
       game.players.splice(idx, 1);
@@ -153,7 +155,7 @@ const store: Store = {
   },
 
   // onMessage is an integral part of your game's server. It is responsible for reading messages sent from the clients and handling them accordingly, this is where your game's event-based logic should live
-  onMessage(roomId: bigint, userId: string, data: ArrayBufferView): void {
+  async onMessage(roomId, userId, data): Promise<void> {
     if (!rooms.has(roomId)) {
       return;
     }
@@ -166,17 +168,15 @@ const store: Store = {
     }
 
     // Parse out the data string being sent from the client
-    const dataStr = Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString("utf8");
+    const dataStr = Buffer.from(data).toString("utf8");
     const message: ClientMessage = JSON.parse(dataStr);
 
     // Handle the various message types, specific to this game
     if (message.type === ClientMessageType.SetDirection) {
       player.direction = message.direction;
-    }
-    else if (message.type === ClientMessageType.SetTheta) {
+    } else if (message.type === ClientMessageType.SetTheta) {
       player.theta = message.theta;
-    }
-    else if (message.type === ClientMessageType.Jump) {
+    } else if (message.type === ClientMessageType.Jump) {
       if (player.grounded) {
         player.body.body.transform();
         player.body.body.setVelocityY(PLAYER_JUMP_FORCE);
@@ -187,28 +187,21 @@ const store: Store = {
 
 // Load our environment variables into process.env
 dotenv.config({ path: "../.env" });
-if (process.env.APP_SECRET === undefined) {
-  throw new Error("APP_SECRET not set");
+if (process.env.HATHORA_APP_SECRET === undefined) {
+  throw new Error("HATHORA_APP_SECRET not set");
 }
 
 // Connect to the Hathora coordinator
-const coordinator = await register({
-  appId: hash.sha256().update(process.env.APP_SECRET).digest("hex"),
-  coordinatorHost: process.env.COORDINATOR_HOST,
-  appSecret: process.env.APP_SECRET,
-  authInfo: { anonymous: { separator: "-" } },
-  store,
-});
-
-const { host, appId, storeId } = coordinator;
-console.log(`Connected to coordinator at ${host} with appId ${appId} and storeId ${storeId}`);
+const port = 4000;
+const server = await startServer(store, port);
+console.log(`Server listening on port ${port}`);
 
 _ammo().then((ammo: any) => {
   globalThis.Ammo = ammo;
 
   const clock = new ServerClock();
 
-  clock.onTick(delta => {
+  clock.onTick((delta) => {
     rooms.forEach((room, roomId) => {
       // Tick each room
       updateRoom(room, delta);
@@ -225,29 +218,26 @@ function updateRoom(room: InternalState, delta: number) {
     player.body.body.transform();
 
     // Forward / backward movement
-    const {theta} = player;
-    const x = Math.sin(theta + (RADIANS_45 * player.direction.x)) * PLAYER_MOVE_SPEED * player.direction.z * delta;
+    const { theta } = player;
+    const x = Math.sin(theta + RADIANS_45 * player.direction.x) * PLAYER_MOVE_SPEED * player.direction.z * delta;
     // const x = PLAYER_MOVE_SPEED * player.direction.z * delta;
     // const x = player.body.body.velocity.x;
     const y = player.body.body.velocity.y;
-    const z = Math.cos(theta + (RADIANS_45 * player.direction.x)) * PLAYER_MOVE_SPEED * player.direction.z * delta;
+    const z = Math.cos(theta + RADIANS_45 * player.direction.x) * PLAYER_MOVE_SPEED * player.direction.z * delta;
     // const z = PLAYER_MOVE_SPEED * player.direction.z * delta;
 
     player.body.body.setVelocity(x, y, z);
 
     if (player.grounded) {
       if (player.direction.z === 1) {
-        player.animation = 'Slow Run';
+        player.animation = "Slow Run";
+      } else if (player.direction.z === -1) {
+        player.animation = "Running Backward";
+      } else {
+        player.animation = "Idle";
       }
-      else if (player.direction.z === -1) {
-        player.animation = 'Running Backward';
-      }
-      else {
-        player.animation = 'Idle';
-      }
-    }
-    else {
-      player.animation = 'Falling Idle';
+    } else {
+      player.animation = "Falling Idle";
     }
 
     player.body.body.refresh();
@@ -258,7 +248,6 @@ function updateRoom(room: InternalState, delta: number) {
 
 function broadcastStateUpdate(roomId: RoomId) {
   const game = rooms.get(roomId)!;
-  const subscribers = coordinator.getSubscribers(roomId);
   const now = Date.now();
   // Map properties in the game's state which the clients need to know about to render the game
   const state: GameState = {
@@ -271,17 +260,15 @@ function broadcastStateUpdate(roomId: RoomId) {
       },
       theta: player.theta,
       grounded: player.grounded,
-      animation: player.animation
-    }))
+      animation: player.animation,
+    })),
   };
 
   // Send the state update to each connected client
-  subscribers.forEach((userId) => {
-    const msg: ServerMessage = {
-      type: ServerMessageType.StateUpdate,
-      state,
-      ts: now,
-    };
-    coordinator.sendMessage(roomId, userId, Buffer.from(JSON.stringify(msg), "utf8"));
-  });
+  const msg: ServerMessage = {
+    type: ServerMessageType.StateUpdate,
+    state,
+    ts: now,
+  };
+  server.broadcastMessage(roomId, Buffer.from(JSON.stringify(msg)));
 }
