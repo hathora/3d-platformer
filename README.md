@@ -9,11 +9,11 @@ A demo 3D-platformer utilizing [Hathora Builtkits](https://github.com/hathora/bu
 To run locally:
 
 - Have node installed
-- Get a Hathora `appId` and `appSecret` via `curl -X POST https://coordinator.hathora.dev/registerApp`
+- Get a Hathora `appId` and `appSecret` via https://console.hathora.dev/
 - Create a .env file at the root with
 ```
-APP_ID=<appId>
-APP_SECRET=<appSecret>
+HATHORA_APP_ID=<appId>
+HATHORA_APP_SECRET=<appSecret>
 ```
 - Start server: inside `server` directory run `npm start` (remember to `npm install` first)
 - Start client: inside `client` directory run `npm start` (remember to `npm install` first)
